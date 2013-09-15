@@ -12,18 +12,22 @@ usage() {
     echo "\
 Usage: mkosimg_c6 [OPTIONS]
 
-Options:
+OPTIONS:
     --help                  print this message and exit
-    --dev=DEV               block device name
-    --hostname=HOSTNAME     hostname (default: centos)
-    --ipaddr=IPADDR         eth0 address (DHCP if not specified)
+    --image=FILE            image file name
+    --hostname=HOSTNAME     hostname (default: centos.net)
+    --ipaddr=IPADDR         eth0 address (default: DHCP)
     --netmask=NETMASK       eth0 netmask
     --gateway=GATEWAY       gateway address
     --dns=DNS               nameserver
+    --repo=REPO             yum repo (default: base)
 "
 
     exit 1
 }
+
+hostname=centos.net
+repo=base
 
 for opt in "$@"; do
     case $opt in
@@ -31,8 +35,8 @@ for opt in "$@"; do
         usage
         ;;
 
-    --dev=*)
-        dev=${opt/--*=}
+    --image=*)
+        image=${opt/--*=}
         ;;
 
     --hostname=*)
@@ -55,6 +59,10 @@ for opt in "$@"; do
         dns=${opt/--*=}
         ;;
 
+    --repo=*)
+        repo=${opt/--*=}
+        ;;
+
     *)
         echo "Invalid option: $opt"
         echo
@@ -63,12 +71,8 @@ for opt in "$@"; do
     esac
 done
 
-if [ -z "$dev" ]; then
+if [ -z "$image" ]; then
     usage
-fi
-
-if [ -z "$hostname" ]; then
-    hostname=centos
 fi
 
 if [ -z "$ipaddr" ]; then
@@ -82,7 +86,7 @@ else
 fi
 
 echo "+++++++++++++++++++++++++++++++"
-echo "dev      : $dev"
+echo "image    : $image"
 echo "hostname : $hostname"
 
 if [ -z "$ipaddr" ]; then
@@ -97,21 +101,34 @@ echo "gateway  : $gateway"
 echo "dns      : $dns"
 fi
 
+echo "repo     : $repo"
 echo "+++++++++++++++++++++++++++++++"
 echo
+
+if [ -n "$(losetup -j $image)" ]; then
+    echo "$image has associated loop device"
+    exit 1
+fi
+
+dev=$(losetup -f)
+losetup $dev $image
 
 parted $dev -s -- mklabel msdos
 parted $dev -s -- unit s mkpart primary 2048 -1
 parted $dev -s -- set 1 boot
 
-mkfs.ext4 -q ${dev}1
-uuid=$(blkid -o value -s UUID ${dev}1)
+kpartx -a -s $dev
+rdev=/dev/mapper/$(basename $dev)p1
+
+mkfs.ext4 $rdev
+uuid=$(blkid -o value -s UUID $rdev)
 
 mnt=$(mktemp -d)
-mount ${dev}1 $mnt
+mount $rdev $mnt
 
 rpm --root=$mnt --initdb
-rpm --root=$mnt -i /media/CentOS/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
+#rpm --root=$mnt -i /media/CentOS/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
+rpm --root=$mnt -i http://mirror.centos.org/centos/6.4/os/x86_64/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
 rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 
 mkdir -p $mnt/dev
@@ -127,16 +144,14 @@ proc /proc proc defaults 0 0
 EOF
 ##}}
 
-pkgs="yum openssh-server passwd e2fsprogs rsyslog kernel acpid man vim-enhanced"
+pkgs="yum openssh-server passwd e2fsprogs rsyslog kernel acpid grub"
 
 if [ -z "$ipaddr" ]; then
     pkgs+=" dhclient"
 fi
 
-yum --installroot=$mnt --disablerepo=* --enablerepo=c6-media -y install $pkgs
+yum --installroot=$mnt --disablerepo=* --enablerepo=$repo -y install $pkgs
 yum --installroot=$mnt clean all
-
-umount $mnt/dev
 
 cat > $mnt/etc/selinux/config <<EOF
 SELINUX=disabled
@@ -207,11 +222,25 @@ EOF
 
 ln -s ../boot/grub/grub.conf $mnt/etc
 
-grub-install --root-directory=$mnt --no-floppy $dev
+mkdir -p $mnt/boot/grub
+cp $mnt/usr/share/grub/x86_64-redhat/{stage1,stage2,e2fs_stage1_5} $mnt/boot/grub
 
+echo "(hd0) $dev" > $mnt/tmp/device.map
+
+chroot $mnt grub --device-map=/tmp/device.map --no-floppy --batch <<EOF
+root (hd0,0)
+setup --stage2=/boot/grub/stage2 (hd0)
+quit
+EOF
+
+rm $mnt/tmp/device.map
+umount $mnt/dev
 umount $mnt
+rmdir $mnt
+kpartx -d $dev
+losetup -d $dev
 
 ##
-## zerofree ${dev}1
+## zerofree $rdev
 ## qemu-img convert -c -O qcow2 $dev ctos6.img
 ##
