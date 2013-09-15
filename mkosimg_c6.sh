@@ -15,7 +15,7 @@ Usage: mkosimg_c6 [OPTIONS]
 OPTIONS:
     --help                  print this message and exit
     --image=FILE            image file name
-    --hostname=HOSTNAME     hostname (default: centos.net)
+    --hostname=HOSTNAME     hostname (default: localhost.localdomain)
     --ipaddr=IPADDR         eth0 address (default: DHCP)
     --netmask=NETMASK       eth0 netmask
     --gateway=GATEWAY       gateway address
@@ -26,7 +26,7 @@ OPTIONS:
     exit 1
 }
 
-hostname=centos.net
+hostname=localhost.localdomain
 repo=base
 
 for opt in "$@"; do
