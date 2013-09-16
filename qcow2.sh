@@ -34,9 +34,8 @@ rdev=/dev/mapper/$(basename $dev)p1
 
 losetup $dev $raw_img
 kpartx -a -s $dev
-
 zerofree $rdev
-qemu-img convert -c -O qcow2 $dev $qcow2_img
-
 kpartx -d $dev
 losetup -d $dev
+
+qemu-img convert -c -O qcow2 $raw_img $qcow2_img
