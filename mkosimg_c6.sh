@@ -1,13 +1,6 @@
 #!/bin/bash
 set -o errexit
 
-##
-## http://intgat.tigress.co.uk/rmy/uml/zerofree-1.0.3.tgz
-## yum install e2fsprogs-devel qemu-img
-##
-## mount /dev/sr0 /media/CentOS
-##
-
 usage() {
     echo "\
 Usage: mkosimg_c6 [OPTIONS]
@@ -239,8 +232,3 @@ umount $mnt
 rmdir $mnt
 kpartx -d $dev
 losetup -d $dev
-
-##
-## zerofree $rdev
-## qemu-img convert -c -O qcow2 $dev ctos6.img
-##

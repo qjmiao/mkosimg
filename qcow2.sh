@@ -1,6 +1,11 @@
 #!/bin/bash
 set -o errexit
 
+##
+## http://intgat.tigress.co.uk/rmy/uml/zerofree-1.0.3.tgz
+## yum install e2fsprogs-devel qemu-img
+##
+
 raw_img=$1
 qcow2_img=$2
 
