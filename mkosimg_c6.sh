@@ -98,6 +98,11 @@ echo "repo     : $repo"
 echo "+++++++++++++++++++++++++++++++"
 echo
 
+if [ ! -f $image ]; then
+    echo "No such file: $image"
+    exit 1
+fi
+
 if [ -n "$(losetup -j $image)" ]; then
     echo "$image has associated loop device"
     exit 1
@@ -120,8 +125,13 @@ mnt=$(mktemp -d)
 mount $rdev $mnt
 
 rpm --root=$mnt --initdb
-#rpm --root=$mnt -i /media/CentOS/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
-rpm --root=$mnt -i http://mirror.centos.org/centos/6.4/os/x86_64/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
+
+if [ -f /media/CentOS/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm ]; then
+    rpm --root=$mnt -i /media/CentOS/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
+else
+    rpm --root=$mnt -i http://mirror.centos.org/centos/6.4/os/x86_64/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
+fi
+
 rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 
 mkdir -p $mnt/dev
