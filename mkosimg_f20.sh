@@ -203,6 +203,8 @@ EOF
 chroot $mnt grub2-install $dev
 chroot $mnt grub2-mkconfig -o /boot/grub2/grub.cfg
 
+cp f20_inst_xfce4.sh $mnt/root
+
 umount $mnt/run
 umount $mnt/sys
 umount $mnt/proc
