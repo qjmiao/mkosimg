@@ -195,8 +195,16 @@ chroot $mnt passwd --stdin root <<EOF
 fedora
 EOF
 
+kpkg=$(rpm --root=$mnt -q kernel)
+kver=${kpkg/kernel-}
+chroot $mnt mkinitrd /boot/initramfs-$kver.img $kver
+
 ##{{
-cat > /etc/default/grub <<EOF
+cat > $mnt/etc/default/grub <<EOF
+GRUB_CMDLINE_LINUX="net.ifnames=0"
+GRUB_DISABLE_SUBMENU=true
+GRUB_DISABLE_OS_PROBER=true
+GRUB_GFXPAYLOAD_LINUX=text
 EOF
 ##}}
 
