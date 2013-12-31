@@ -10,6 +10,7 @@ network-manager-applet
 xorg-x11-drv-evdev
 xorg-x11-drv-vesa
 xfdesktop
+xfce4-appfinder
 xfce4-session
 xfce4-settings
 xfce4-terminal
