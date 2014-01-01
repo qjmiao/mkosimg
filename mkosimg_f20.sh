@@ -201,10 +201,10 @@ chroot $mnt mkinitrd /boot/initramfs-$kver.img $kver
 
 ##{{
 cat > $mnt/etc/default/grub <<EOF
-GRUB_CMDLINE_LINUX="net.ifnames=0"
+GRUB_CMDLINE_LINUX="nomodeset net.ifnames=0"
 GRUB_DISABLE_SUBMENU=true
 GRUB_DISABLE_OS_PROBER=true
-GRUB_GFXPAYLOAD_LINUX=text
+GRUB_TERMINAL=console
 EOF
 ##}}
 
