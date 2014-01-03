@@ -1,10 +1,14 @@
 #!/bin/sh
 
 xfce4_pkgs="
+adwaita-cursor-theme
+adwaita-gtk2-theme
+adwaita-gtk3-theme
 dejavu-sans-fonts
 dejavu-sans-mono-fonts
 dejavu-serif-fonts
 fedora-icon-theme
+gnome-icon-theme-legacy
 lightdm
 network-manager-applet
 xorg-x11-drv-evdev
