@@ -13,14 +13,12 @@ OPTIONS:
     --netmask=NETMASK       eth0 netmask
     --gateway=GATEWAY       gateway address
     --dns=DNS               nameserver
-    --repo=REPO             yum repo (default: base)
 "
 
     exit 1
 }
 
-hostname=localhost.localdomain
-repo=base
+hostname=localhost
 
 for opt in "$@"; do
     case $opt in
@@ -50,10 +48,6 @@ for opt in "$@"; do
 
     --dns=*)
         dns=${opt/--*=}
-        ;;
-
-    --repo=*)
-        repo=${opt/--*=}
         ;;
 
     *)
@@ -93,8 +87,6 @@ echo "netmask  : $netmask"
 echo "gateway  : $gateway"
 echo "dns      : $dns"
 fi
-
-echo "repo     : $repo"
 echo "+++++++++++++++++++++++++++++++"
 echo
 
@@ -125,13 +117,8 @@ mnt=$(mktemp -d)
 mount $rdev $mnt
 
 rpm --root=$mnt --initdb
-
-if [ -f /media/CentOS/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm ]; then
-    rpm --root=$mnt -i /media/CentOS/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
-else
-    rpm --root=$mnt -i http://mirror.centos.org/centos/6.4/os/x86_64/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm
-fi
-
+release_rpm=centos-release-6-5.el6.centos.11.1.x86_64.rpm
+rpm --root=$mnt -i http://mirror.centos.org/centos/6.5/os/x86_64/Packages/$release_rpm
 rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 
 mkdir -p $mnt/dev
@@ -147,13 +134,14 @@ proc /proc proc defaults 0 0
 EOF
 ##}}
 
-pkgs="yum openssh-server passwd e2fsprogs rsyslog kernel acpid grub"
+pkgs="yum openssh-server openssh-clients passwd e2fsprogs rsyslog kernel acpid grub vim-minimal"
 
 if [ -z "$ipaddr" ]; then
     pkgs+=" dhclient"
 fi
 
-yum --installroot=$mnt --disablerepo=* --enablerepo=$repo -y install $pkgs
+yum --installroot=$mnt -y install shared-mime-info
+yum --installroot=$mnt -y install $pkgs
 yum --installroot=$mnt clean all
 
 cat > $mnt/etc/selinux/config <<EOF
@@ -212,14 +200,17 @@ chroot $mnt passwd --stdin root <<EOF
 centos
 EOF
 
+kpkg=$(rpm --root=$mnt -q kernel)
+kver=${kpkg/kernel-}
+
 ##{{
 cat > $mnt/boot/grub/grub.conf <<EOF
 default=0
 timeout=3
 
-title CentOS (2.6.32-358.el6.x86_64)
-    kernel /boot/vmlinuz-2.6.32-358.el6.x86_64 root=UUID=$uuid ro nomodeset
-    initrd /boot/initramfs-2.6.32-358.el6.x86_64.img
+title CentOS ($kver)
+    kernel /boot/vmlinuz-$kver root=UUID=$uuid ro nomodeset
+    initrd /boot/initramfs-$kver.img
 EOF
 ##}}
 
