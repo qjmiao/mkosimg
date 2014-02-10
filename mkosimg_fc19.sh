@@ -7,20 +7,18 @@ Usage: mkosimg_fc19 [OPTIONS]
 
 OPTIONS:
     --help                  print this message and exit
-    --dev=DEV               block device name
+    --dev=FILE              block device or image file
     --hostname=HOSTNAME     hostname (default: localhost)
     --ipaddr=IPADDR         eth0 address (default: DHCP)
     --netmask=NETMASK       eth0 netmask (default: DHCP)
     --gateway=GATEWAY       gateway address (default: DHCP)
     --dns=DNS               nameserver (default: DHCP)
-    --repo=REPO             yum repo (default: fedora)
 EOF
 
     exit 1
 }
 
 hostname=localhost
-repo=fedora
 
 for opt in "$@"; do
     case $opt in
@@ -29,7 +27,7 @@ for opt in "$@"; do
         ;;
 
     --dev=*)
-        dev=${opt/--*=}
+        xfile=${opt/--*=}
         ;;
 
     --hostname=*)
@@ -52,10 +50,6 @@ for opt in "$@"; do
         dns=${opt/--*=}
         ;;
 
-    --repo=*)
-        repo=${opt/--*=}
-        ;;
-
     *)
         echo "Invalid option: $opt"
         usage
@@ -63,7 +57,7 @@ for opt in "$@"; do
     esac
 done
 
-if [ -z "$dev" ]; then
+if [ -z "$xfile" ]; then
     usage
 fi
 
@@ -78,7 +72,7 @@ else
 fi
 
 echo "+++++++++++++++++++++++++++++++"
-echo "device   : $dev"
+echo "device   : $xfile"
 echo "hostname : $hostname"
 
 if [ -z "$ipaddr" ]; then
@@ -92,21 +86,31 @@ echo "netmask  : $netmask"
 echo "gateway  : $gateway"
 echo "dns      : $dns"
 fi
-
-echo "repo     : $repo"
 echo "+++++++++++++++++++++++++++++++"
 echo
 
-if [ ! -b $dev ]; then
-    echo "No such block device: $dev"
+if [ ! -b $xfile -a ! -f $xfile ]; then
+    echo "No such device or file: $xfile"
     exit 1
 fi
 
-rdev=${dev}1
+parted $xfile -s -- mklabel msdos
+parted $xfile -s -- unit s mkpart primary 2048 -1
+parted $xfile -s -- set 1 boot
 
-parted $dev -s -- mklabel msdos
-parted $dev -s -- unit s mkpart primary 2048 -1
-parted $dev -s -- set 1 boot
+if [ -f $xfile ]; then
+    if [ -n "$(losetup -j $xfile)" ]; then
+        echo "$xfile has associated loop device"
+        exit 1
+    fi
+
+    dev=$(losetup -f)
+    losetup -P $dev $xfile
+    rdev=${dev}p1
+else
+    dev=$xfile
+    rdev=${dev}1
+fi
 
 mkfs.ext4 $rdev
 uuid=$(blkid -o value -s UUID $rdev)
@@ -115,7 +119,7 @@ mnt=$(mktemp -d)
 mount $rdev $mnt
 
 rpm --root=$mnt --initdb
-rpm --root=$mnt -i http://tel.mirrors.163.com/fedora/updates/19/x86_64/fedora-release-19-5.noarch.rpm
+rpm --root=$mnt -i http://mirrors.163.com/fedora/updates/19/x86_64/fedora-release-19-6.noarch.rpm
 rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-19-x86_64
 
 mkdir -p $mnt/{dev,proc,sys,run}
@@ -141,6 +145,7 @@ kbd
 kernel
 less
 net-tools
+openssh-clients
 openssh-server
 passwd
 yum
@@ -206,7 +211,7 @@ GRUB_TERMINAL=console
 EOF
 ##}}
 
-chroot $mnt grub2-install $dev
+chroot $mnt grub2-install --modules=part_msdos $dev
 chroot $mnt grub2-mkconfig -o /boot/grub2/grub.cfg
 
 cp fc19_inst_xfce4.sh $mnt/root
@@ -217,3 +222,7 @@ umount $mnt/proc
 umount $mnt/dev
 umount $mnt
 rmdir $mnt
+
+if [ -f $xfile ]; then
+    losetup -d $dev
+fi
