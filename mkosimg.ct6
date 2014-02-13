@@ -3,7 +3,7 @@ set -o errexit
 
 usage() {
     echo "\
-Usage: mkosimg_c6 [OPTIONS]
+Usage: mkosimg.ct6 [OPTIONS]
 
 OPTIONS:
     --help                  print this message and exit

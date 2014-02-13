@@ -3,7 +3,7 @@ set -o errexit
 
 usage() {
     cat <<EOF
-Usage: mkosimg_fc19 [OPTIONS]
+Usage: mkosimg.fc19 [OPTIONS]
 
 OPTIONS:
     --help                  print this message and exit
