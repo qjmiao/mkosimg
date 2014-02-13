@@ -127,6 +127,7 @@ mount -t devtmpfs none $mnt/dev
 mount -t proc none $mnt/proc
 mount -t sysfs none $mnt/sys
 mount -t tmpfs none $mnt/run
+ln -s ../run $mnt/var/run #XXX yum
 mkdir -p $mnt/run/udev/data #XXX dracut
 mkdir $mnt/run/lock #XXX ppp
 
