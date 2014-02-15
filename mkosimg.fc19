@@ -3,7 +3,7 @@ set -o errexit
 
 usage() {
     cat <<EOF
-Usage: mkosimg.fc19 [OPTIONS]
+Usage: $(basename $0) [OPTIONS]
 
 OPTIONS:
     --help                  print this message and exit
@@ -201,6 +201,10 @@ cp $mnt/etc/skel/.bash* $mnt/root
 chroot $mnt passwd --stdin root <<EOF
 fedora
 EOF
+
+kpkg=$(rpm --root=$mnt -q kernel)
+kver=${kpkg/kernel-}
+chroot $mnt mkinitrd -f --with=virtio_blk.ko /boot/initramfs-$kver.img $kver
 
 ##{{
 cat > $mnt/etc/default/grub <<EOF
