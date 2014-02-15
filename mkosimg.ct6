@@ -2,18 +2,18 @@
 set -o errexit
 
 usage() {
-    echo "\
-Usage: mkosimg.ct6 [OPTIONS]
+    cat <<EOF
+Usage: $(basename $0) [OPTIONS]
 
 OPTIONS:
     --help                  print this message and exit
-    --image=FILE            image file name
-    --hostname=HOSTNAME     hostname (default: localhost.localdomain)
+    --dev=FILE              block device or image file
+    --hostname=HOSTNAME     hostname (default: localhost)
     --ipaddr=IPADDR         eth0 address (default: DHCP)
-    --netmask=NETMASK       eth0 netmask
-    --gateway=GATEWAY       gateway address
-    --dns=DNS               nameserver
-"
+    --netmask=NETMASK       eth0 netmask (default: DHCP)
+    --gateway=GATEWAY       gateway address (default: DHCP)
+    --dns=DNS               nameserver (default: DHCP)
+EOF
 
     exit 1
 }
@@ -26,8 +26,8 @@ for opt in "$@"; do
         usage
         ;;
 
-    --image=*)
-        image=${opt/--*=}
+    --dev=*)
+        xfile=${opt/--*=}
         ;;
 
     --hostname=*)
@@ -52,13 +52,12 @@ for opt in "$@"; do
 
     *)
         echo "Invalid option: $opt"
-        echo
         usage
         ;;
     esac
 done
 
-if [ -z "$image" ]; then
+if [ -z "$xfile" ]; then
     usage
 fi
 
@@ -73,7 +72,7 @@ else
 fi
 
 echo "+++++++++++++++++++++++++++++++"
-echo "image    : $image"
+echo "device   : $xfile"
 echo "hostname : $hostname"
 
 if [ -z "$ipaddr" ]; then
@@ -90,25 +89,29 @@ fi
 echo "+++++++++++++++++++++++++++++++"
 echo
 
-if [ ! -f $image ]; then
-    echo "No such file: $image"
+if [ ! -b $xfile -a ! -f $xfile ]; then
+    echo "No such device or file: $xfile"
     exit 1
 fi
 
-if [ -n "$(losetup -j $image)" ]; then
-    echo "$image has associated loop device"
-    exit 1
+parted $xfile -s -- mklabel msdos
+parted $xfile -s -- unit s mkpart primary 2048 -1
+parted $xfile -s -- set 1 boot
+
+if [ -f $xfile ]; then
+    if [ -n "$(losetup -j $xfile)" ]; then
+        echo "$xfile has associated loop device"
+        exit 1
+    fi
+
+    dev=$(losetup -f)
+    losetup $dev $xfile
+    kpartx -a -s $dev
+    rdev=/dev/mapper/$(basename $dev)p1
+else
+    dev=$xfile
+    rdev=${dev}1
 fi
-
-dev=$(losetup -f)
-losetup $dev $image
-
-parted $dev -s -- mklabel msdos
-parted $dev -s -- unit s mkpart primary 2048 -1
-parted $dev -s -- set 1 boot
-
-kpartx -a -s $dev
-rdev=/dev/mapper/$(basename $dev)p1
 
 mkfs.ext4 $rdev
 uuid=$(blkid -o value -s UUID $rdev)
@@ -134,21 +137,26 @@ proc /proc proc defaults 0 0
 EOF
 ##}}
 
-pkgs="yum openssh-server openssh-clients passwd e2fsprogs rsyslog kernel acpid grub vim-minimal"
-
-if [ -z "$ipaddr" ]; then
-    pkgs+=" dhclient"
-fi
-
-yum --installroot=$mnt -y install shared-mime-info
+pkgs="
+acpid
+dhclient
+e2fsprogs
+grub
+kernel
+openssh-server
+openssh-clients
+passwd
+rsyslog
+vim-minimal
+yum
+"
+yum --installroot=$mnt -y install shared-mime-info #XXX
 yum --installroot=$mnt -y install $pkgs
 yum --installroot=$mnt clean all
 
 cat > $mnt/etc/selinux/config <<EOF
 SELINUX=disabled
 EOF
-
-sed -i -e "s/tty\[1-6\]/tty1/" $mnt/etc/sysconfig/init
 
 if [ -n "$dns" ]; then
     echo "nameserver $dns" > $mnt/etc/resolv.conf
@@ -231,5 +239,8 @@ rm $mnt/tmp/device.map
 umount $mnt/dev
 umount $mnt
 rmdir $mnt
-kpartx -d $dev
-losetup -d $dev
+
+if [ -f $xfile ]; then
+    kpartx -d $dev
+    losetup -d $dev
+fi
