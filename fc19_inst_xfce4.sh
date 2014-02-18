@@ -1,4 +1,8 @@
 #!/bin/sh
+#
+# Copyright (C) 2014 Eric Miao <qjmiao@gmail.com>. All rights reserved.
+# License: GPL
+#
 
 xfce4_pkgs="
 adwaita-cursor-theme
