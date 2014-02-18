@@ -4,10 +4,12 @@ Build OS Image (CentOS, Fedora)
 
 Overview
 ========
-``mkosimg.{ct6,fc19}`` scripts can be used to build CentOS-6.5 or Fedora-19 OS image which can be used as QEMU/KVM disk image
-or directly written to USB disk to boot a physical machine.
+``mkosimg.{ct6,fc19}`` scripts can be used to build CentOS-6.5 or Fedora-19 OS
+image which can be used as QEMU/KVM disk image or directly written to USB disk
+to boot a physical machine.
 
-In addition, ``mkosimg.{ct6,fc19}`` scripts can be used to install CentOS-6.5 or Fedora-19 directly on block device.
+In addition, ``mkosimg.{ct6,fc19}`` scripts can be used to install CentOS-6.5 or
+Fedora-19 directly on block device including USB disk.
 
 Prerequisites
 =============
@@ -15,7 +17,7 @@ Prerequisites
 
 ``mkosimg.fc19`` runs under Fedora-19/x86_64 environment.
 
-Please make sure you have installed ``kpartx`` and ``parted`` packages.
+Please make sure you have installed both ``kpartx`` and ``parted`` packages.
 
 ::
 
@@ -44,11 +46,13 @@ The simplest way::
   ./mkosimg.fc19 --dev=fc19.img # using image file
   ./mkosimg.fc19 --dev=/dev/sdX # or using block device
 
-The built OS image uses *localhost* as hostname and gets eth0 settings through *DHCP*.
+The built OS image uses *localhost* as hostname and gets eth0 settings through
+*DHCP*.
 
 More complicated way::
 
-  ./mkosimg.fc19 --dev=fc19.img --hostname=fc19 --ipaddr==192.168.1.100 --netmask=255.255.255.0 --gateway=192.168.1.1 --dns=8.8.8.8
+  ./mkosimg.fc19 --dev=fc19.img --hostname=fc19 --ipaddr==192.168.1.100 \
+      --netmask=255.255.255.0 --gateway=192.168.1.1 --dns=8.8.8.8
 
 Using OS Image
 ==============
