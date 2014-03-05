@@ -123,8 +123,7 @@ mnt=$(mktemp -d)
 mount $rdev $mnt
 
 rpm --root=$mnt --initdb
-rel_rpm=fedora-release-20-1.noarch.rpm
-rpm --root=$mnt -i http://mirrors.163.com/fedora/releases/20/Fedora/x86_64/os/Packages/f/$rel_rpm
+rpm --root=$mnt -i http://mirrors.163.com/fedora/updates/20/x86_64/fedora-release-20-3.noarch.rpm
 rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-20-x86_64
 
 mkdir -p $mnt/{dev,proc,sys,run}
@@ -147,6 +146,7 @@ NetworkManager
 dhclient
 e2fsprogs
 grub2
+grubby
 kbd
 kernel
 less
@@ -154,6 +154,7 @@ net-tools
 openssh-clients
 openssh-server
 passwd
+plymouth
 yum
 vim-minimal
 "
@@ -213,7 +214,7 @@ chroot $mnt mkinitrd -f --with=virtio_blk.ko /boot/initramfs-$kver.img $kver
 
 ##{{
 cat > $mnt/etc/default/grub <<EOF
-GRUB_CMDLINE_LINUX="nomodeset net.ifnames=0"
+GRUB_CMDLINE_LINUX="net.ifnames=0 rhgb quiet"
 GRUB_DISABLE_SUBMENU=true
 GRUB_DISABLE_OS_PROBER=true
 GRUB_DISABLE_RECOVERY=true
