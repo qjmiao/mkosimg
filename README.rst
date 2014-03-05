@@ -60,11 +60,11 @@ QEMU/KVM
 --------
 ::
 
-  qemu-system-x86_64 -drive file=os.img,if=virtio -net user -net nic,model=virtio
+  qemu-system-x86_64 -drive file=fc19.img,if=virtio -net user -net nic,model=virtio
 
 USB boot disk
 -------------
 ::
 
-  dd if=os.img of=/dev/sdX bs=1M count=4K # using dd command
-  cp os.img /dev/sdX # or using cp command
+  dd if=fc19.img of=/dev/sdX bs=1M count=4K # using dd command
+  cp fc19.img /dev/sdX # or using cp command
