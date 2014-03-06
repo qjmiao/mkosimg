@@ -150,6 +150,7 @@ kernel
 openssh-server
 openssh-clients
 passwd
+plymouth
 rsyslog
 vim-minimal
 yum
@@ -221,7 +222,7 @@ default=0
 timeout=3
 
 title CentOS ($kver)
-    kernel /boot/vmlinuz-$kver root=UUID=$uuid ro nomodeset
+    kernel /boot/vmlinuz-$kver root=UUID=$uuid ro rhgb quiet
     initrd /boot/initramfs-$kver.img
 EOF
 ##}}
