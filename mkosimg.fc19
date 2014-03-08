@@ -153,6 +153,7 @@ net-tools
 openssh-clients
 openssh-server
 passwd
+plymouth
 yum
 vim-minimal
 "
@@ -212,7 +213,7 @@ chroot $mnt mkinitrd -f --with=virtio_blk.ko /boot/initramfs-$kver.img $kver
 
 ##{{
 cat > $mnt/etc/default/grub <<EOF
-GRUB_CMDLINE_LINUX="nomodeset net.ifnames=0"
+GRUB_CMDLINE_LINUX="net.ifnames=0 rhgb quiet"
 GRUB_DISABLE_SUBMENU=true
 GRUB_DISABLE_OS_PROBER=true
 GRUB_DISABLE_RECOVERY=true
