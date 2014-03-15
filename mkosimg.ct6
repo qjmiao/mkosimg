@@ -155,6 +155,8 @@ rsyslog
 vim-minimal
 yum
 "
+
+yum --installroot=$mnt -y update
 yum --installroot=$mnt -y install shared-mime-info #XXX
 yum --installroot=$mnt -y install $pkgs
 yum --installroot=$mnt clean all
