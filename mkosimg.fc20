@@ -123,8 +123,8 @@ mnt=$(mktemp -d)
 mount $rdev $mnt
 
 rpm --root=$mnt --initdb
-rpm --root=$mnt -i http://mirrors.163.com/fedora/updates/20/x86_64/fedora-release-20-3.noarch.rpm
-rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-20-x86_64
+rpm --root=$mnt -i http://mirrors.163.com/fedora/releases/20/Fedora/x86_64/os/Packages/f/fedora-release-20-1.noarch.rpm
+rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-fedora
 
 mkdir -p $mnt/{dev,proc,sys,run}
 mount -t devtmpfs none $mnt/dev
@@ -159,6 +159,7 @@ yum
 vim-minimal
 "
 
+yum --installroot=$mnt -y update
 yum --installroot=$mnt -y install $pkgs
 yum --installroot=$mnt clean all
 
