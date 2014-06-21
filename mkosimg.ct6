@@ -124,8 +124,7 @@ mnt=$(mktemp -d)
 mount $rdev $mnt
 
 rpm --root=$mnt --initdb
-release_rpm=centos-release-6-5.el6.centos.11.1.x86_64.rpm
-rpm --root=$mnt -i http://mirror.centos.org/centos/6.5/os/x86_64/Packages/$release_rpm
+rpm --root=$mnt -i http://mirror.centos.org/centos/6.5/os/x86_64/Packages/centos-release-6-5.el6.centos.11.1.x86_64.rpm
 rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 
 mkdir -p $mnt/dev
