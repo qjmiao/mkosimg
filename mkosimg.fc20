@@ -124,7 +124,7 @@ mount $rdev $mnt
 
 rpm --root=$mnt --initdb
 rpm --root=$mnt -i http://mirrors.163.com/fedora/releases/20/Fedora/x86_64/os/Packages/f/fedora-release-20-1.noarch.rpm
-rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-fedora
+rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-20-fedora
 
 mkdir -p $mnt/{dev,proc,sys,run}
 mount -t devtmpfs none $mnt/dev
