@@ -123,28 +123,14 @@ mnt=$(mktemp -d)
 mount $rdev $mnt
 
 rpm --root=$mnt --initdb
-rpm --root=$mnt -i http://buildlogs.centos.org/centos/7/os/x86_64-latest/Packages/centos-release-7-0.el7.0.140617.3.x86_64.rpm
-#rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+rpm --root=$mnt -i http://mirror.centos.org/centos/7/os/x86_64/Packages/centos-release-7-0.1406.el7.centos.2.3.x86_64.rpm
+rpm --root=$mnt --import $mnt/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
 
 mkdir -p $mnt/{dev,proc,sys,run}
 mount -t devtmpfs none $mnt/dev
 mount -t proc none $mnt/proc
 mount -t sysfs none $mnt/sys
 mount -t tmpfs none $mnt/run
-#ln -s ../run $mnt/var/run #XXX yum
-#mkdir -p $mnt/run/udev/data #XXX dracut
-#mkdir $mnt/run/lock #XXX ppp
-
-mkdir $mnt/etc/yum.repos.d
-##{{
-cat > $mnt/etc/yum.repos.d/centos.repo <<EOF
-[centos]
-name=CentOS
-baseurl=http://buildlogs.centos.org/centos/7/os/x86_64-latest/
-enabled=1
-gpgcheck=0
-EOF
-##}}
 
 ##{{
 cat > $mnt/etc/fstab <<EOF
@@ -154,6 +140,7 @@ EOF
 
 pkgs="
 NetworkManager
+deltarpm
 dhclient
 e2fsprogs
 grub2
