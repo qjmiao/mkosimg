@@ -1,0 +1,193 @@
+#!/bin/bash
+#
+# Copyright (C) 2014 Eric Miao <qjmiao@gmail.com>. All rights reserved.
+# License: GPL
+#
+set -o errexit
+
+usage() {
+    cat <<EOF
+Usage: $(basename $0) [OPTIONS]
+
+OPTIONS:
+    --help                  print this message and exit
+    --dev=FILE              block device or image file
+    --hostname=HOSTNAME     hostname (default: localhost)
+    --ipaddr=IPADDR         eth0 address (default: DHCP)
+    --netmask=NETMASK       eth0 netmask (default: DHCP)
+    --gateway=GATEWAY       gateway address (default: DHCP)
+    --dns=DNS               nameserver (default: DHCP)
+EOF
+
+    exit 1
+}
+
+deb_src=http://mirrors.163.com/ubuntu
+hostname=ubuntu
+
+for opt in "$@"; do
+    case $opt in
+    --help)
+        usage
+        ;;
+
+    --dev=*)
+        xfile=${opt/--*=}
+        ;;
+
+    --hostname=*)
+        hostname=${opt/--*=}
+        ;;
+
+    --ipaddr=*)
+        ipaddr=${opt/--*=}
+        ;;
+
+    --netmask=*)
+        netmask=${opt/--*=}
+        ;;
+
+    --gateway=*)
+        gateway=${opt/--*=}
+        ;;
+
+    --dns=*)
+        dns=${opt/--*=}
+        ;;
+
+    *)
+        echo "Invalid option: $opt"
+        usage
+        ;;
+    esac
+done
+
+if [ -z "$xfile" ]; then
+    usage
+fi
+
+if [ -z "$ipaddr" ]; then
+    if [ -n "$netmask" -o -n "$gateway" -o -n "$dns" ]; then
+        usage
+    fi
+else
+    if [ -z "$netmask" -o -z "$gateway" -o -z "$dns" ]; then
+        usage
+    fi
+fi
+
+echo "+++++++++++++++++++++++++++++++"
+echo "device   : $xfile"
+echo "hostname : $hostname"
+
+if [ -z "$ipaddr" ]; then
+echo "ipaddr   : DHCP"
+echo "netmask  : DHCP"
+echo "gateway  : DHCP"
+echo "dns      : DHCP"
+else
+echo "ipaddr   : $ipaddr"
+echo "netmask  : $netmask"
+echo "gateway  : $gateway"
+echo "dns      : $dns"
+fi
+echo "+++++++++++++++++++++++++++++++"
+echo
+
+if [ ! -b $xfile -a ! -f $xfile ]; then
+    echo "No such device or file: $xfile"
+    exit 1
+fi
+
+parted $xfile -s -- mklabel msdos
+parted $xfile -s -- unit s mkpart primary 2048 -1
+parted $xfile -s -- set 1 boot
+
+if [ -f $xfile ]; then
+    if [ -n "$(losetup -j $xfile)" ]; then
+        echo "$xfile has associated loop device"
+        exit 1
+    fi
+
+    dev=$(losetup -f)
+    losetup $dev $xfile
+    kpartx -a -s $dev
+    rdev=/dev/mapper/$(basename $dev)p1
+else
+    dev=$xfile
+    rdev=${dev}1
+fi
+
+mkfs.ext4 $rdev
+uuid=$(blkid -o value -s UUID $rdev)
+
+mnt=$(mktemp -d)
+mount $rdev $mnt
+
+debootstrap --include=grub-pc,linux-image-generic,openssh-server trusty $mnt $deb_src
+chroot $mnt apt-get clean
+
+mount -t devtmpfs none $mnt/dev
+mount -t proc none $mnt/proc
+mount -t sysfs none $mnt/sys
+mount -t tmpfs none $mnt/run
+
+cat > $mnt/etc/fstab <<EOF
+UUID=$uuid / ext4 defaults 0 1
+EOF
+
+echo $hostname > $mnt/etc/hostname
+
+if [ -n "$dns" ]; then
+    echo "nameserver $dns" > $mnt/etc/resolv.conf
+fi
+
+##{{
+cat > $mnt/etc/network/interfaces <<EOF
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+EOF
+##}}
+
+chroot $mnt chpasswd <<EOF
+root:ubuntu
+EOF
+
+chroot $mnt locale-gen en_US.UTF-8
+chroot $mnt update-locale LANG=en_US.UTF-8
+
+cat > $mnt/etc/apt/sources.list <<EOF
+deb $deb_src trusty main
+deb $deb_src trusty-updates main
+deb $deb_src trusty-security main
+EOF
+
+chroot $mnt grub-install $dev
+
+##{{
+cat > $mnt/boot/grub/grub.cfg <<EOF
+set default=0
+set timeout=3
+set root=(hd0,1)
+
+menuentry "Ubuntu, with Linux 3.13.0-24-generic" {
+    linux /boot/vmlinuz-3.13.0-24-generic root=UUID=$uuid ro
+    initrd /boot/initrd.img-3.13.0-24-generic
+}
+EOF
+##}}
+
+umount $mnt/run
+umount $mnt/sys
+umount $mnt/proc
+umount $mnt/dev
+umount $mnt
+rmdir $mnt
+
+if [ -f $xfile ]; then
+    kpartx -d $dev
+    losetup -d $dev
+fi
