@@ -124,7 +124,9 @@ uuid=$(blkid -o value -s UUID $rdev)
 mnt=$(mktemp -d)
 mount $rdev $mnt
 
-debootstrap --include=grub-pc,linux-image-generic,openssh-server trusty $mnt $deb_src
+pkgs=acpid,grub-pc,iputils-ping,isc-dhcp-client,linux-image-generic,net-tools,openssh-server,vim,whiptail
+
+debootstrap --include=$pkgs trusty $mnt $deb_src
 chroot $mnt apt-get clean
 
 mount -t devtmpfs none $mnt/dev
@@ -139,6 +141,7 @@ EOF
 echo $hostname > $mnt/etc/hostname
 
 if [ -n "$dns" ]; then
+    rm -f $mnt/etc/resolv.conf
     echo "nameserver $dns" > $mnt/etc/resolv.conf
 fi
 
@@ -148,9 +151,25 @@ auto lo
 iface lo inet loopback
 
 auto eth0
+EOF
+##}}
+
+if [ -z "$ipaddr" ]; then
+##{{
+    cat >> $mnt/etc/network/interfaces <<EOF
 iface eth0 inet dhcp
 EOF
 ##}}
+else
+##{{
+    cat >> $mnt/etc/network/interfaces <<EOF
+iface eth0 inet static
+    address $ipaddr
+    netmask $netmask
+    gateway $gateway
+EOF
+##}}
+fi
 
 chroot $mnt chpasswd <<EOF
 root:ubuntu
