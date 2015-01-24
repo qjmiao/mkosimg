@@ -12,7 +12,7 @@ Usage: $(basename $0) [OPTIONS]
 OPTIONS:
     --help                  print this message and exit
     --dev=FILE              block device or image file
-    --hostname=HOSTNAME     hostname (default: localhost)
+    --hostname=HOSTNAME     hostname (default: ubuntu)
     --ipaddr=IPADDR         eth0 address (default: DHCP)
     --netmask=NETMASK       eth0 netmask (default: DHCP)
     --gateway=GATEWAY       gateway address (default: DHCP)
@@ -99,6 +99,8 @@ if [ ! -b $xfile -a ! -f $xfile ]; then
     exit 1
 fi
 
+apt-get install -y debootstrap kpartx
+
 parted $xfile -s -- mklabel msdos
 parted $xfile -s -- unit s mkpart primary 2048 -1
 parted $xfile -s -- set 1 boot
@@ -179,9 +181,9 @@ chroot $mnt locale-gen en_US.UTF-8
 chroot $mnt update-locale LANG=en_US.UTF-8
 
 cat > $mnt/etc/apt/sources.list <<EOF
-deb $deb_src trusty main
-deb $deb_src trusty-updates main
-deb $deb_src trusty-security main
+deb $deb_src trusty main restricted universe multiverse
+deb $deb_src trusty-updates main restricted universe multiverse
+deb $deb_src trusty-security main restricted universe multiverse
 EOF
 
 chroot $mnt grub-install $dev
