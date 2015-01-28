@@ -126,12 +126,11 @@ uuid=$(blkid -o value -s UUID $rdev)
 mnt=$(mktemp -d)
 mount $rdev $mnt
 
-pkgs=acpid,grub-pc,iputils-ping,isc-dhcp-client,linux-image-generic,net-tools,openssh-server,vim,whiptail
-
+pkgs=acpid,grub-pc,linux-image-generic,openssh-server
 debootstrap --include=$pkgs trusty $mnt $deb_src
 chroot $mnt apt-get clean
 
-mount -t devtmpfs none $mnt/dev
+mount --bind /dev $mnt/dev
 mount -t proc none $mnt/proc
 mount -t sysfs none $mnt/sys
 mount -t tmpfs none $mnt/run
@@ -142,36 +141,28 @@ EOF
 
 echo $hostname > $mnt/etc/hostname
 
-if [ -n "$dns" ]; then
-    rm -f $mnt/etc/resolv.conf
-    echo "nameserver $dns" > $mnt/etc/resolv.conf
-fi
-
-##{{
 cat > $mnt/etc/network/interfaces <<EOF
 auto lo
 iface lo inet loopback
 
 auto eth0
 EOF
-##}}
 
 if [ -z "$ipaddr" ]; then
-##{{
     cat >> $mnt/etc/network/interfaces <<EOF
 iface eth0 inet dhcp
 EOF
-##}}
 else
-##{{
     cat >> $mnt/etc/network/interfaces <<EOF
 iface eth0 inet static
     address $ipaddr
     netmask $netmask
     gateway $gateway
+    dns-nameservers $dns
 EOF
-##}}
 fi
+
+rm -f $mnt/etc/resolvconf/resolv.conf.d/{original,tail}
 
 chroot $mnt chpasswd <<EOF
 root:ubuntu
@@ -188,18 +179,10 @@ EOF
 
 chroot $mnt grub-install $dev
 
-##{{
-cat > $mnt/boot/grub/grub.cfg <<EOF
-set default=0
-set timeout=3
-set root=(hd0,1)
-
-menuentry "Ubuntu, with Linux 3.13.0-24-generic" {
-    linux /boot/vmlinuz-3.13.0-24-generic root=UUID=$uuid ro
-    initrd /boot/initrd.img-3.13.0-24-generic
-}
-EOF
-##}}
+sed -i "s/GRUB_HIDDEN_TIMEOUT/#GRUB_HIDDEN_TIMEOUT/" $mnt/etc/default/grub
+sed -i "s/GRUB_HIDDEN_TIMEOUT_QUIET/#GRUB_HIDDEN_TIMEOUT_QUIET/" $mnt/etc/default/grub
+sed -i "s/quiet splash//" $mnt/etc/default/grub
+chroot $mnt update-grub
 
 umount $mnt/run
 umount $mnt/sys
