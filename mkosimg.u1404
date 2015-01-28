@@ -179,8 +179,7 @@ EOF
 
 chroot $mnt grub-install $dev
 
-sed -i "s/GRUB_HIDDEN_TIMEOUT/#GRUB_HIDDEN_TIMEOUT/" $mnt/etc/default/grub
-sed -i "s/GRUB_HIDDEN_TIMEOUT_QUIET/#GRUB_HIDDEN_TIMEOUT_QUIET/" $mnt/etc/default/grub
+sed -i "s/GRUB_HIDDEN_TIMEOUT=/#GRUB_HIDDEN_TIMEOUT=/" $mnt/etc/default/grub
 sed -i "s/quiet splash//" $mnt/etc/default/grub
 chroot $mnt update-grub
 
