@@ -131,6 +131,7 @@ mount -t devtmpfs none $mnt/dev
 mount -t proc none $mnt/proc
 mount -t sysfs none $mnt/sys
 mount -t tmpfs none $mnt/run
+ln -s ../run $mnt/var/run
 
 ##{{
 cat > $mnt/etc/fstab <<EOF
@@ -220,7 +221,7 @@ GRUB_TERMINAL=console
 EOF
 ##}}
 
-chroot $mnt grub2-install --modules=part_msdos $dev
+chroot $mnt grub2-install --target=i386-pc --modules=part_msdos $dev
 chroot $mnt grub2-mkconfig -o /boot/grub2/grub.cfg
 
 umount $mnt/run
