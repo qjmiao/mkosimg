@@ -22,7 +22,7 @@ EOF
     exit 1
 }
 
-deb_src=http://mirrors.163.com/ubuntu
+deb_src=http://mirrors.aliyun.com/ubuntu
 hostname=ubuntu
 
 for opt in "$@"; do
@@ -179,8 +179,16 @@ EOF
 
 chroot $mnt grub-install $dev
 
-sed -i "s/GRUB_HIDDEN_TIMEOUT=/#GRUB_HIDDEN_TIMEOUT=/" $mnt/etc/default/grub
-sed -i "s/quiet splash//" $mnt/etc/default/grub
+mv $mnt/etc/default/grub $mnt/etc/default/grub.orig
+
+cat > $mnt/etc/default/grub << EOF
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=3
+GRUB_TERMINAL=console
+GRUB_DISTRIBUTOR=Ubuntu
+GRUB_CMDLINE_LINUX="nomodeset"
+EOF
+
 chroot $mnt update-grub
 
 umount $mnt/run
