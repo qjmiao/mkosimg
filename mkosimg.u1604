@@ -1,0 +1,204 @@
+#!/bin/bash
+#
+# Copyright (C) 2014 Eric Miao <qjmiao@gmail.com>. All rights reserved.
+# License: GPL
+#
+set -o errexit
+
+usage() {
+    cat <<EOF
+Usage: $(basename $0) [OPTIONS]
+
+OPTIONS:
+    --help                  print this message and exit
+    --dev=FILE              block device or image file
+    --hostname=HOSTNAME     hostname (default: ubuntu)
+    --ipaddr=IPADDR         eth0 address (default: DHCP)
+    --netmask=NETMASK       eth0 netmask (default: DHCP)
+    --gateway=GATEWAY       gateway address (default: DHCP)
+    --dns=DNS               nameserver (default: DHCP)
+EOF
+
+    exit 1
+}
+
+deb_src=http://mirrors.aliyun.com/ubuntu
+hostname=ubuntu
+
+for opt in "$@"; do
+    case $opt in
+    --help)
+        usage
+        ;;
+
+    --dev=*)
+        xfile=${opt/--*=}
+        ;;
+
+    --hostname=*)
+        hostname=${opt/--*=}
+        ;;
+
+    --ipaddr=*)
+        ipaddr=${opt/--*=}
+        ;;
+
+    --netmask=*)
+        netmask=${opt/--*=}
+        ;;
+
+    --gateway=*)
+        gateway=${opt/--*=}
+        ;;
+
+    --dns=*)
+        dns=${opt/--*=}
+        ;;
+
+    *)
+        echo "Invalid option: $opt"
+        usage
+        ;;
+    esac
+done
+
+if [ -z "$xfile" ]; then
+    usage
+fi
+
+if [ -z "$ipaddr" ]; then
+    if [ -n "$netmask" -o -n "$gateway" -o -n "$dns" ]; then
+        usage
+    fi
+else
+    if [ -z "$netmask" -o -z "$gateway" -o -z "$dns" ]; then
+        usage
+    fi
+fi
+
+echo "+++++++++++++++++++++++++++++++"
+echo "device   : $xfile"
+echo "hostname : $hostname"
+
+if [ -z "$ipaddr" ]; then
+echo "ipaddr   : DHCP"
+echo "netmask  : DHCP"
+echo "gateway  : DHCP"
+echo "dns      : DHCP"
+else
+echo "ipaddr   : $ipaddr"
+echo "netmask  : $netmask"
+echo "gateway  : $gateway"
+echo "dns      : $dns"
+fi
+echo "+++++++++++++++++++++++++++++++"
+echo
+
+if [ ! -b $xfile -a ! -f $xfile ]; then
+    echo "No such device or file: $xfile"
+    exit 1
+fi
+
+apt-get install -y debootstrap kpartx
+
+parted $xfile -s -- mklabel msdos
+parted $xfile -s -- unit s mkpart primary 2048 -1
+parted $xfile -s -- set 1 boot
+
+if [ -f $xfile ]; then
+    if [ -n "$(losetup -j $xfile)" ]; then
+        echo "$xfile has associated loop device"
+        exit 1
+    fi
+
+    dev=$(losetup -f)
+    losetup $dev $xfile
+    kpartx -a -s $dev
+    rdev=/dev/mapper/$(basename $dev)p1
+else
+    dev=$xfile
+    rdev=${dev}1
+fi
+
+mkfs.ext4 $rdev
+uuid=$(blkid -o value -s UUID $rdev)
+
+mnt=$(mktemp -d)
+mount $rdev $mnt
+
+pkgs=acpid,grub-pc,linux-image-generic,openssh-server
+debootstrap --include=$pkgs xenial $mnt $deb_src
+chroot $mnt apt-get clean
+
+mount --bind /dev $mnt/dev
+mount -t proc none $mnt/proc
+mount -t sysfs none $mnt/sys
+mount -t tmpfs none $mnt/run
+
+cat > $mnt/etc/fstab <<EOF
+UUID=$uuid / ext4 defaults 0 1
+EOF
+
+echo $hostname > $mnt/etc/hostname
+
+cat > $mnt/etc/network/interfaces <<EOF
+auto lo
+iface lo inet loopback
+
+auto eth0
+EOF
+
+if [ -z "$ipaddr" ]; then
+    cat >> $mnt/etc/network/interfaces <<EOF
+iface eth0 inet dhcp
+EOF
+else
+    cat >> $mnt/etc/network/interfaces <<EOF
+iface eth0 inet static
+    address $ipaddr
+    netmask $netmask
+    gateway $gateway
+    dns-nameservers $dns
+EOF
+fi
+
+rm -f $mnt/etc/resolvconf/resolv.conf.d/{original,tail}
+
+chroot $mnt chpasswd <<EOF
+root:ubuntu
+EOF
+
+chroot $mnt locale-gen en_US.UTF-8
+chroot $mnt update-locale LANG=en_US.UTF-8
+
+cat > $mnt/etc/apt/sources.list <<EOF
+deb $deb_src xenial main restricted universe multiverse
+deb $deb_src xenial-updates main restricted universe multiverse
+deb $deb_src xenial-security main restricted universe multiverse
+EOF
+
+chroot $mnt grub-install $dev
+
+mv $mnt/etc/default/grub $mnt/etc/default/grub.orig
+
+cat > $mnt/etc/default/grub << EOF
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=3
+GRUB_TERMINAL=console
+GRUB_DISTRIBUTOR="Ubuntu"
+GRUB_CMDLINE_LINUX="net.ifnames=0 nomodeset"
+EOF
+
+chroot $mnt update-grub
+
+umount $mnt/run
+umount $mnt/sys
+umount $mnt/proc
+umount $mnt/dev
+umount $mnt
+rmdir $mnt
+
+if [ -f $xfile ]; then
+    kpartx -d $dev
+    losetup -d $dev
+fi
